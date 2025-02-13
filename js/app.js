@@ -1,4 +1,15 @@
-let tg = window.Telegram.WebApp;
+// Инициализация Telegram WebApp или создание заглушки
+let tg = window.Telegram.WebApp || {
+    ready: () => {},
+    expand: () => {},
+    MainButton: {
+        setText: () => {},
+        show: () => {},
+        hide: () => {},
+        onClick: () => {}
+    }
+};
+
 let watchId = null;
 let isTracking = false;
 let startTime = null;
@@ -20,6 +31,32 @@ tg.ready();
 const mainButton = tg.MainButton;
 mainButton.setText('Начать отслеживание');
 mainButton.show();
+
+// Добавление кнопки для тестирования вне Telegram
+if (!window.Telegram.WebApp) {
+    const button = document.createElement('button');
+    button.innerText = 'Начать отслеживание';
+    button.style.cssText = `
+        display: block;
+        margin: 20px auto;
+        padding: 10px 20px;
+        background: var(--tg-theme-button-color, #2ea6ff);
+        color: var(--tg-theme-button-text-color, #ffffff);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    `;
+    button.onclick = () => {
+        if (isTracking) {
+            stopTracking();
+            button.innerText = 'Начать отслеживание';
+        } else {
+            startTracking();
+            button.innerText = 'Остановить отслеживание';
+        }
+    };
+    document.querySelector('.container').appendChild(button);
+}
 
 // Функция форматирования времени
 function formatTime(ms) {
@@ -78,7 +115,11 @@ function startTracking() {
                 timestamp: position.timestamp
             };
 
-            tg.sendData(JSON.stringify(data));
+            const now = Date.now();
+            if (now - lastSendTime >= SEND_INTERVAL) {
+                tg.sendData(JSON.stringify(data));
+                lastSendTime = now;
+            }
         },
         (error) => {
             console.error('Ошибка геолокации:', error);
@@ -115,18 +156,18 @@ function stopTracking() {
 // Воспроизведение звукового оповещения
 async function playAlert(distance) {
     if (!soundSettings.enabled) return;
-
+    
     try {
         // Предупреждающий сигнал
         const warning = new Audio('alerts/warning.mp3');
         warning.volume = soundSettings.volume;
         await warning.play();
-
+        
         // Ждем окончания
         await new Promise(resolve => {
             warning.onended = resolve;
         });
-
+        
         // Голосовое сообщение о расстоянии
         const distanceFile = distance >= 1000 ? '1000m.mp3' : `${Math.floor(distance/100)*100}m.mp3`;
         const voice = new Audio(`alerts/${distanceFile}`);
@@ -148,7 +189,7 @@ mainButton.onClick(() => {
 
 document.getElementById('soundEnabled').onchange = function() {
     soundSettings.enabled = this.checked;
-    document.querySelector('.volume-control').style.display =
+    document.querySelector('.volume-control').style.display = 
         this.checked ? 'block' : 'none';
 };
 
@@ -161,7 +202,7 @@ tg.onEvent('message', function(event) {
     try {
         const data = JSON.parse(event.data);
         console.log('Сообщение от бота:', data);
-
+        
         if (data.type === 'dps_alert') {
             playAlert(data.distance);
         } else if (data.type === 'command' && data.action === 'stop_tracking') {
