@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPS Tracker</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div id="status" class="status">
+            Статус: <span class="inactive">Ожидание запуска</span>
+        </div>
+        <div id="accuracy" class="accuracy">
+            Точность: -
+        </div>
+        <div id="timer" class="timer">
+            Время: 00:00:00
+        </div>
+        <div class="settings">
+            <label class="sound-toggle">
+                <input type="checkbox" id="soundEnabled" checked>
+                Звуковые оповещения
+            </label>
+            <div class="volume-control">
+                <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
+            </div>
+        </div>
+    </div>
+    <script src="js/app.js"></script>
+</body>
+</html>
