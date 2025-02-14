@@ -1,21 +1,14 @@
-// Инициализация Telegram WebApp или создание заглушки
-let tg = window.Telegram.WebApp || {
-    ready: () => {},
-    expand: () => {},
-    MainButton: {
-        setText: () => {},
-        show: () => {},
-        hide: () => {},
-        onClick: () => {}
-    }
-};
+// Инициализация Telegram WebApp
+let tg = window.Telegram.WebApp;
 
+// Настройки
+const SEND_INTERVAL = 5000; // 5 секунд между отправками
 let watchId = null;
 let isTracking = false;
 let startTime = null;
 let updateTimer = null;
 let lastSendTime = 0;
-const SEND_INTERVAL = 30000; // 30 секунд между отправками
+let lastPosition = null;
 
 // Настройки звука
 const soundSettings = {
@@ -23,7 +16,7 @@ const soundSettings = {
     volume: 1.0
 };
 
-// Инициализация
+// Инициализация WebApp
 tg.expand();
 tg.ready();
 
@@ -31,32 +24,6 @@ tg.ready();
 const mainButton = tg.MainButton;
 mainButton.setText('Начать отслеживание');
 mainButton.show();
-
-// Добавление кнопки для тестирования вне Telegram
-if (!window.Telegram.WebApp) {
-    const button = document.createElement('button');
-    button.innerText = 'Начать отслеживание';
-    button.style.cssText = `
-        display: block;
-        margin: 20px auto;
-        padding: 10px 20px;
-        background: var(--tg-theme-button-color, #2ea6ff);
-        color: var(--tg-theme-button-text-color, #ffffff);
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-    `;
-    button.onclick = () => {
-        if (isTracking) {
-            stopTracking();
-            button.innerText = 'Начать отслеживание';
-        } else {
-            startTracking();
-            button.innerText = 'Остановить отслеживание';
-        }
-    };
-    document.querySelector('.container').appendChild(button);
-}
 
 // Функция форматирования времени
 function formatTime(ms) {
@@ -69,107 +36,179 @@ function formatTime(ms) {
 // Обновление статуса
 function updateStatus(type, message) {
     const status = document.getElementById('status');
-    status.innerHTML = `Статус: <span class="${type}">${message}</span>`;
+    if (status) {
+        status.innerHTML = `Статус: <span class="${type}">${message}</span>`;
+    }
+    console.log(`Статус: ${message}`);
 }
 
 // Обновление точности
 function updateAccuracy(accuracy) {
     const accuracyElement = document.getElementById('accuracy');
-    accuracyElement.textContent = `Точность: ${accuracy ? accuracy.toFixed(2) + ' метров' : '-'}`;
+    if (accuracyElement) {
+        accuracyElement.textContent = `Точность: ${accuracy ? accuracy.toFixed(2) + ' метров' : '-'}`;
+    }
 }
 
 // Обновление таймера
 function updateTimerDisplay() {
     if (!startTime) return;
     const timerElement = document.getElementById('timer');
-    const elapsed = Date.now() - startTime;
-    timerElement.textContent = `Время: ${formatTime(elapsed)}`;
+    if (timerElement) {
+        const elapsed = Date.now() - startTime;
+        timerElement.textContent = `Время: ${formatTime(elapsed)}`;
+    }
+}
+
+// Проверка разрешений геолокации
+async function checkLocationPermission() {
+    try {
+        const result = await navigator.permissions.query({ name: 'geolocation' });
+        if (result.state === 'denied') {
+            updateStatus('error', 'Доступ к геолокации запрещен. Пожалуйста, разрешите доступ в настройках браузера.');
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.error('Ошибка проверки разрешений:', e);
+        return true; // Продолжаем, если API разрешений не поддерживается
+    }
+}
+
+// Функция отправки данных
+function sendLocationData(position) {
+    const data = {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: Date.now()
+    };
+
+    try {
+        tg.sendData(JSON.stringify(data));
+        lastSendTime = Date.now();
+        lastPosition = position;
+        console.log('Отправлены данные:', data);
+        updateStatus('active', 'Данные успешно отправлены');
+    } catch (e) {
+        console.error('Ошибка отправки данных:', e);
+        updateStatus('error', 'Ошибка отправки данных');
+    }
 }
 
 // Функция запуска отслеживания
-function startTracking() {
+async function startTracking() {
     if (!navigator.geolocation) {
-        updateStatus('error', 'Геолокация не поддерживается');
+        updateStatus('error', 'Геолокация не поддерживается браузером');
         return;
     }
 
-    isTracking = true;
-    startTime = Date.now();
-    updateStatus('active', 'Отслеживание активно');
-    mainButton.setText('Остановить отслеживание');
+    if (!await checkLocationPermission()) {
+        return;
+    }
 
-    // Запуск таймера
-    updateTimer = setInterval(updateTimerDisplay, 1000);
+    try {
+        isTracking = true;
+        startTime = Date.now();
+        updateStatus('active', 'Запуск отслеживания...');
+        mainButton.setText('Остановить отслеживание');
 
-    // Запуск отслеживания геолокации
-    watchId = navigator.geolocation.watchPosition(
-        (position) => {
-            const accuracy = position.coords.accuracy;
-            updateAccuracy(accuracy);
+        // Запуск таймера
+        updateTimer = setInterval(updateTimerDisplay, 1000);
 
-            // Отправка данных боту
-            const data = {
-                lat: position.coords.latitude,
-                lon: position.coords.longitude,
-                accuracy: accuracy,
-                timestamp: position.timestamp
-            };
+        // Запуск отслеживания геолокации
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const accuracy = position.coords.accuracy;
+                updateAccuracy(accuracy);
 
-            const now = Date.now();
-            if (now - lastSendTime >= SEND_INTERVAL) {
-                tg.sendData(JSON.stringify(data));
-                lastSendTime = now;
+                // Отправка данных боту
+                const now = Date.now();
+                if (now - lastSendTime >= SEND_INTERVAL) {
+                    sendLocationData(position);
+                }
+            },
+            (error) => {
+                let errorMessage;
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'Доступ к геолокации запрещен';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'Информация о местоположении недоступна';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'Превышено время ожидания запроса геолокации';
+                        break;
+                    default:
+                        errorMessage = 'Неизвестная ошибка геолокации';
+                }
+                console.error('Ошибка геолокации:', error);
+                updateStatus('error', `Ошибка: ${errorMessage}`);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
             }
-        },
-        (error) => {
-            console.error('Ошибка геолокации:', error);
-            updateStatus('error', 'Ошибка получения локации');
-        },
-        {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 5000
-        }
-    );
+        );
+    } catch (e) {
+        console.error('Ошибка запуска отслеживания:', e);
+        updateStatus('error', `Ошибка запуска отслеживания: ${e.message}`);
+        stopTracking();
+    }
 }
 
 // Функция остановки отслеживания
 function stopTracking() {
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
+    try {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
 
-    if (updateTimer !== null) {
-        clearInterval(updateTimer);
-        updateTimer = null;
-    }
+        if (updateTimer !== null) {
+            clearInterval(updateTimer);
+            updateTimer = null;
+        }
 
-    isTracking = false;
-    startTime = null;
-    updateStatus('inactive', 'Отслеживание остановлено');
-    updateAccuracy(null);
-    document.getElementById('timer').textContent = 'Время: 00:00:00';
-    mainButton.setText('Начать отслеживание');
+        isTracking = false;
+        startTime = null;
+        lastPosition = null;
+        updateStatus('inactive', 'Отслеживание остановлено');
+        updateAccuracy(null);
+        const timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent = 'Время: 00:00:00';
+        }
+        mainButton.setText('Начать отслеживание');
+    } catch (e) {
+        console.error('Ошибка остановки отслеживания:', e);
+        updateStatus('error', `Ошибка остановки отслеживания: ${e.message}`);
+    }
 }
 
 // Воспроизведение звукового оповещения
 async function playAlert(distance) {
     if (!soundSettings.enabled) return;
-    
+
     try {
         // Предупреждающий сигнал
         const warning = new Audio('alerts/warning.mp3');
         warning.volume = soundSettings.volume;
         await warning.play();
-        
+
         // Ждем окончания
         await new Promise(resolve => {
             warning.onended = resolve;
         });
-        
+
         // Голосовое сообщение о расстоянии
-        const distanceFile = distance >= 1000 ? '1000m.mp3' : `${Math.floor(distance/100)*100}m.mp3`;
+        const distanceFile = distance >= 1000 ? '1000m.mp3' :
+                           distance >= 500 ? '500m.mp3' :
+                           distance >= 300 ? '300m.mp3' :
+                           distance >= 200 ? '200m.mp3' : '100m.mp3';
+
         const voice = new Audio(`alerts/${distanceFile}`);
         voice.volume = soundSettings.volume;
         await voice.play();
@@ -187,28 +226,34 @@ mainButton.onClick(() => {
     }
 });
 
-document.getElementById('soundEnabled').onchange = function() {
+// Обработчики настроек звука
+document.getElementById('soundEnabled')?.addEventListener('change', function() {
     soundSettings.enabled = this.checked;
-    document.querySelector('.volume-control').style.display = 
-        this.checked ? 'block' : 'none';
-};
+    const volumeControl = document.querySelector('.volume-control');
+    if (volumeControl) {
+        volumeControl.style.display = this.checked ? 'block' : 'none';
+    }
+});
 
-document.getElementById('volume').onchange = function() {
+document.getElementById('volume')?.addEventListener('change', function() {
     soundSettings.volume = parseFloat(this.value);
-};
+});
 
 // Обработка сообщений от бота
-tg.onEvent('message', function(event) {
+window.addEventListener('message', function(event) {
     try {
         const data = JSON.parse(event.data);
-        console.log('Сообщение от бота:', data);
-        
+        console.log('Получено сообщение:', data);
+
         if (data.type === 'dps_alert') {
             playAlert(data.distance);
-        } else if (data.type === 'command' && data.action === 'stop_tracking') {
-            stopTracking();
         }
     } catch (e) {
         console.error('Ошибка обработки сообщения:', e);
     }
+});
+
+// Инициализация при загрузке
+window.addEventListener('load', () => {
+    updateStatus('inactive', 'Готов к работе');
 });
