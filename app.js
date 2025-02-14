@@ -54,6 +54,9 @@ function startTracking() {
     // Запуск таймера
     updateTimer = setInterval(updateTimerDisplay, 1000);
 
+    // Отправляем начальное сообщение о старте отслеживания
+    sendStartMessage();
+
     // Запуск отслеживания геолокации
     watchId = navigator.geolocation.watchPosition(
         handlePosition,
@@ -84,24 +87,21 @@ function handleError(error) {
     updateStatus('error', `Ошибка: ${getLocationErrorMessage(error)}`);
 }
 
-function stopTracking() {
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
+function sendStartMessage() {
+    const data = {
+        action: 'start_tracking',
+        timestamp: Date.now()
+    };
+    try {
+        Telegram.WebApp.sendData(JSON.stringify(data));
+    } catch (error) {
+        console.error('Ошибка отправки данных:', error);
     }
-
-    if (lastPosition) {
-        sendLocationData(lastPosition, true);
-    }
-
-    isTracking = false;
-    clearInterval(updateTimer);
-    document.getElementById('trackButton').textContent = 'Начать отслеживание';
-    updateStatus('inactive', 'Отслеживание остановлено');
 }
 
 function sendLocationData(position, isFinal = false) {
     const data = {
+        action: 'update_location',
         lat: position.coords.latitude,
         lon: position.coords.longitude,
         accuracy: position.coords.accuracy,
@@ -119,6 +119,29 @@ function sendLocationData(position, isFinal = false) {
     }
 }
 
+function stopTracking() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+
+    const data = {
+        action: 'stop_tracking',
+        timestamp: Date.now()
+    };
+
+    try {
+        Telegram.WebApp.sendData(JSON.stringify(data));
+    } catch (error) {
+        console.error('Ошибка отправки данных:', error);
+    }
+
+    isTracking = false;
+    clearInterval(updateTimer);
+    document.getElementById('trackButton').textContent = 'Начать отслеживание';
+    updateStatus('inactive', 'Отслеживание остановлено');
+}
+
 function getLocationErrorMessage(error) {
     switch(error.code) {
         case error.PERMISSION_DENIED:
@@ -134,7 +157,15 @@ function getLocationErrorMessage(error) {
 
 // Добавляем обработчик закрытия окна
 window.addEventListener('beforeunload', () => {
-    if (isTracking && lastPosition) {
-        sendLocationData(lastPosition, true);
+    if (isTracking) {
+        const data = {
+            action: 'stop_tracking',
+            timestamp: Date.now()
+        };
+        try {
+            Telegram.WebApp.sendData(JSON.stringify(data));
+        } catch (error) {
+            console.error('Ошибка отправки данных при закрытии:', error);
+        }
     }
 });
