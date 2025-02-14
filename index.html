@@ -63,6 +63,32 @@
             font-size: 12px;
             color: var(--tg-theme-hint-color, #999999);
         }
+
+        .track-button {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .button {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .button:hover {
+            opacity: 0.8;
+        }
+
+        .button:active {
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +97,10 @@
             <div id="status" class="info-box">Статус: <span class="inactive">Ожидание...</span></div>
             <div id="accuracy" class="info-box">Точность: -</div>
             <div id="timer" class="info-box">Время: 00:00:00</div>
+        </div>
+
+        <div class="track-button">
+            <button id="trackButton" class="button">Начать отслеживание</button>
         </div>
 
         <div class="settings">
