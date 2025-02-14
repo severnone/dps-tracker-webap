@@ -71,18 +71,19 @@ async function checkLocationPermission() {
 }
 
 // Функция отправки данных
-function sendLocationData(position) {
+function sendLocationData(position, isFinal = false) {
+    lastPosition = position;
     const data = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
         accuracy: position.coords.accuracy,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        isFinal: isFinal
     };
 
     try {
         tg.sendData(JSON.stringify(data));
         lastSendTime = Date.now();
-        lastPosition = position;
         console.log('Отправлены данные:', data);
         updateStatus('active', 'Данные успешно отправлены');
     } catch (e) {
@@ -121,25 +122,12 @@ async function startTracking() {
                 const now = Date.now();
                 if (now - lastSendTime >= SEND_INTERVAL) {
                     sendLocationData(position);
+                    lastSendTime = now;
                 }
             },
             (error) => {
-                let errorMessage;
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        errorMessage = 'Доступ к геолокации запрещен';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        errorMessage = 'Информация о местоположении недоступна';
-                        break;
-                    case error.TIMEOUT:
-                        errorMessage = 'Превышено время ожидания запроса геолокации';
-                        break;
-                    default:
-                        errorMessage = 'Неизвестная ошибка геолокации';
-                }
                 console.error('Ошибка геолокации:', error);
-                updateStatus('error', `Ошибка: ${errorMessage}`);
+                updateStatus('error', `Ошибка: ${getLocationErrorMessage(error)}`);
             },
             {
                 enableHighAccuracy: true,
@@ -147,6 +135,13 @@ async function startTracking() {
                 timeout: 5000
             }
         );
+
+        // Добавляем обработчик закрытия окна
+        window.addEventListener('beforeunload', () => {
+            if (isTracking) {
+                sendLocationData(lastPosition, true); // отправляем последнюю позицию
+            }
+        });
     } catch (e) {
         console.error('Ошибка запуска отслеживания:', e);
         updateStatus('error', `Ошибка запуска отслеживания: ${e.message}`);
