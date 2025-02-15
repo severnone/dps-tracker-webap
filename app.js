@@ -9,6 +9,7 @@ const SEND_INTERVAL = 5000; // 5 секунд
 document.addEventListener('DOMContentLoaded', function() {
     updateStatus('inactive', 'Готов к работе');
     document.getElementById('trackButton').addEventListener('click', toggleTracking);
+    console.log('WebApp загружен и готов к работе'); // Добавлено для отладки
 });
 
 function updateTimerDisplay() {
@@ -27,11 +28,13 @@ function updateStatus(status, message) {
     const statusElement = document.getElementById('status');
     statusElement.className = `status ${status}`;
     statusElement.textContent = message;
+    console.log(`Статус обновлен: ${status} - ${message}`); // Добавлено для отладки
 }
 
 function updateAccuracy(accuracy) {
     const accuracyElement = document.getElementById('accuracy');
     accuracyElement.textContent = `Точность: ${accuracy.toFixed(1)}м`;
+    console.log(`Точность обновлена: ${accuracy.toFixed(1)}м`); // Добавлено для отладки
 }
 
 function toggleTracking() {
@@ -49,6 +52,7 @@ async function startTracking() {
     }
 
     updateStatus('active', 'Запуск отслеживания...');
+    console.log('Начинаем отслеживание'); // Добавлено для отладки
 
     try {
         const position = await new Promise((resolve, reject) => {
@@ -122,6 +126,7 @@ function stopTracking() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
+        console.log('Отслеживание остановлено'); // Добавлено для отладки
     }
 
     const data = {
@@ -137,6 +142,7 @@ function stopTracking() {
         // Добавляем задержку перед закрытием WebApp
         setTimeout(() => {
             Telegram.WebApp.close();
+            console.log('WebApp закрыт'); // Добавлено для отладки
         }, 1000); // 1 секунда
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
@@ -150,13 +156,6 @@ function stopTracking() {
     updateStatus('inactive', 'Отслеживание остановлено');
 }
 
-// Обработчик закрытия окна
-window.addEventListener('beforeunload', (event) => {
-    if (isTracking) {
-        stopTracking();
-    }
-});
-
 function getLocationErrorMessage(error) {
     switch(error.code) {
         case error.PERMISSION_DENIED:
@@ -169,3 +168,10 @@ function getLocationErrorMessage(error) {
             return "Неизвестная ошибка";
     }
 }
+
+// Обработчик закрытия окна
+window.addEventListener('beforeunload', (event) => {
+    if (isTracking) {
+        stopTracking();
+    }
+});
