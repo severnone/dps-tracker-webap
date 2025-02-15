@@ -51,72 +51,17 @@ function startTracking() {
     updateStatus('active', 'Запуск отслеживания...');
     document.getElementById('trackButton').textContent = 'Остановить отслеживание';
 
-    // Запуск таймера
-    updateTimer = setInterval(updateTimerDisplay, 1000);
-
-    // Отправляем начальное сообщение о старте отслеживания
-    sendStartMessage();
-
-    // Запуск отслеживания геолокации
-    watchId = navigator.geolocation.watchPosition(
-        handlePosition,
-        handleError,
-        {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 5000
-        }
-    );
-}
-
-function handlePosition(position) {
-    lastPosition = position;
-    const accuracy = position.coords.accuracy;
-    updateAccuracy(accuracy);
-
-    // Отправка данных боту
-    const now = Date.now();
-    if (now - lastSendTime >= SEND_INTERVAL) {
-        sendLocationData(position);
-        lastSendTime = now;
-    }
-}
-
-function handleError(error) {
-    console.error('Ошибка геолокации:', error);
-    updateStatus('error', `Ошибка: ${getLocationErrorMessage(error)}`);
-}
-
-function sendStartMessage() {
-    const data = {
+    // Отправляем стартовое сообщение
+    const startData = {
         action: 'start_tracking',
         timestamp: Date.now()
     };
-    try {
-        Telegram.WebApp.sendData(JSON.stringify(data));
-    } catch (error) {
-        console.error('Ошибка отправки данных:', error);
-    }
-}
+    Telegram.WebApp.sendData(JSON.stringify(startData));
 
-function sendLocationData(position, isFinal = false) {
-    const data = {
-        action: 'update_location',
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        timestamp: Date.now(),
-        isFinal: isFinal
-    };
-
-    try {
-        Telegram.WebApp.sendData(JSON.stringify(data));
-        updateStatus('active', 'Данные успешно отправлены');
-        console.log('Отправлены данные:', data);
-    } catch (error) {
-        console.error('Ошибка отправки данных:', error);
-        updateStatus('error', 'Ошибка отправки данных');
-    }
+    // Закрываем WebApp после старта
+    setTimeout(() => {
+        Telegram.WebApp.close();
+    }, 1000);
 }
 
 function stopTracking() {
@@ -140,6 +85,11 @@ function stopTracking() {
     clearInterval(updateTimer);
     document.getElementById('trackButton').textContent = 'Начать отслеживание';
     updateStatus('inactive', 'Отслеживание остановлено');
+
+    // Закрываем WebApp после остановки
+    setTimeout(() => {
+        Telegram.WebApp.close();
+    }, 1000);
 }
 
 function getLocationErrorMessage(error) {
