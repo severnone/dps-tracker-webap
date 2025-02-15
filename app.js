@@ -72,15 +72,8 @@ async function startTracking() {
         };
 
         // Отправляем данные и ждем подтверждения
-        await new Promise((resolve, reject) => {
-            try {
-                Telegram.WebApp.sendData(JSON.stringify(startData));
-                // Ждем 1 секунду для обработки данных
-                setTimeout(resolve, 1000);
-            } catch (error) {
-                reject(error);
-            }
-        });
+        Telegram.WebApp.sendData(JSON.stringify(startData));
+        console.log('Отправлено start_tracking:', startData);
 
         updateStatus('active', 'Отслеживание активно');
         updateAccuracy(position.coords.accuracy);
@@ -101,6 +94,7 @@ async function startTracking() {
                         timestamp: now
                     };
                     Telegram.WebApp.sendData(JSON.stringify(updateData));
+                    console.log('Отправлено update_location:', updateData);
                     lastSendTime = now;
                 }
             },
@@ -124,7 +118,7 @@ async function startTracking() {
     }
 }
 
-async function stopTracking() {
+function stopTracking() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
@@ -137,15 +131,13 @@ async function stopTracking() {
 
     try {
         // Отправляем данные и ждем подтверждения
-        await new Promise((resolve, reject) => {
-            try {
-                Telegram.WebApp.sendData(JSON.stringify(data));
-                // Ждем 1 секунду для обработки данных
-                setTimeout(resolve, 1000);
-            } catch (error) {
-                reject(error);
-            }
-        });
+        Telegram.WebApp.sendData(JSON.stringify(data));
+        console.log('Отправлено stop_tracking:', data);
+
+        // Добавляем задержку перед закрытием WebApp
+        setTimeout(() => {
+            Telegram.WebApp.close();
+        }, 1000); // 1 секунда
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
     }
@@ -157,6 +149,13 @@ async function stopTracking() {
     document.getElementById('trackButton').textContent = 'Начать отслеживание';
     updateStatus('inactive', 'Отслеживание остановлено');
 }
+
+// Обработчик закрытия окна
+window.addEventListener('beforeunload', (event) => {
+    if (isTracking) {
+        stopTracking();
+    }
+});
 
 function getLocationErrorMessage(error) {
     switch(error.code) {
@@ -170,12 +169,3 @@ function getLocationErrorMessage(error) {
             return "Неизвестная ошибка";
     }
 }
-
-// Обработчик закрытия окна
-window.addEventListener('beforeunload', async (event) => {
-    if (isTracking) {
-        event.preventDefault();
-        event.returnValue = '';
-        await stopTracking();
-    }
-});
