@@ -46,30 +46,49 @@ function startTracking() {
         return;
     }
 
-    isTracking = true;
-    startTime = Date.now();
-    updateStatus('active', 'Запуск отслеживания...');
-    document.getElementById('trackButton').textContent = 'Остановить отслеживание';
+    // Сначала получаем текущую позицию
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            isTracking = true;
+            startTime = Date.now();
+            updateStatus('active', 'Запуск отслеживания...');
+            document.getElementById('trackButton').textContent = 'Остановить отслеживание';
 
-    // Отправляем стартовое сообщение
-    const startData = {
-        action: 'start_tracking',
-        timestamp: Date.now()
-    };
-    Telegram.WebApp.sendData(JSON.stringify(startData));
+            // Отправляем стартовое сообщение с начальной позицией
+            const startData = {
+                action: 'start_tracking',
+                lat: position.coords.latitude,
+                lon: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: Date.now()
+            };
 
-    // Закрываем WebApp после старта
-    setTimeout(() => {
-        Telegram.WebApp.close();
-    }, 1000);
+            try {
+                Telegram.WebApp.sendData(JSON.stringify(startData));
+                updateStatus('active', 'Отслеживание запущено');
+
+                // Закрываем WebApp через 2 секунды
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 2000);
+            } catch (error) {
+                console.error('Ошибка отправки данных:', error);
+                updateStatus('error', 'Ошибка запуска отслеживания');
+            }
+        },
+        (error) => {
+            console.error('Ошибка геолокации:', error);
+            updateStatus('error', getLocationErrorMessage(error));
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        }
+    );
 }
 
 function stopTracking() {
-    if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
-
     const data = {
         action: 'stop_tracking',
         timestamp: Date.now()
@@ -77,19 +96,20 @@ function stopTracking() {
 
     try {
         Telegram.WebApp.sendData(JSON.stringify(data));
+        updateStatus('inactive', 'Отслеживание остановлено');
+
+        // Закрываем WebApp через 2 секунды
+        setTimeout(() => {
+            Telegram.WebApp.close();
+        }, 2000);
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
+        updateStatus('error', 'Ошибка остановки отслеживания');
     }
 
     isTracking = false;
     clearInterval(updateTimer);
     document.getElementById('trackButton').textContent = 'Начать отслеживание';
-    updateStatus('inactive', 'Отслеживание остановлено');
-
-    // Закрываем WebApp после остановки
-    setTimeout(() => {
-        Telegram.WebApp.close();
-    }, 1000);
 }
 
 function getLocationErrorMessage(error) {
