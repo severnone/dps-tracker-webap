@@ -9,7 +9,7 @@ const SEND_INTERVAL = 5000; // 5 секунд
 document.addEventListener('DOMContentLoaded', function() {
     updateStatus('inactive', 'Готов к работе');
     document.getElementById('trackButton').addEventListener('click', toggleTracking);
-    console.log('WebApp загружен и готов к работе'); // Добавлено для отладки
+    console.log('WebApp загружен и готов к работе'); // Для отладки
 });
 
 function updateTimerDisplay() {
@@ -28,13 +28,13 @@ function updateStatus(status, message) {
     const statusElement = document.getElementById('status');
     statusElement.className = `status ${status}`;
     statusElement.textContent = message;
-    console.log(`Статус обновлен: ${status} - ${message}`); // Добавлено для отладки
+    console.log(`Статус обновлен: ${status} - ${message}`); // Для отладки
 }
 
 function updateAccuracy(accuracy) {
     const accuracyElement = document.getElementById('accuracy');
     accuracyElement.textContent = `Точность: ${accuracy.toFixed(1)}м`;
-    console.log(`Точность обновлена: ${accuracy.toFixed(1)}м`); // Добавлено для отладки
+    console.log(`Точность обновлена: ${accuracy.toFixed(1)}м`); // Для отладки
 }
 
 function toggleTracking() {
@@ -52,7 +52,7 @@ async function startTracking() {
     }
 
     updateStatus('active', 'Запуск отслеживания...');
-    console.log('Начинаем отслеживание'); // Добавлено для отладки
+    console.log('Начинаем отслеживание'); // Для отладки
 
     try {
         const position = await new Promise((resolve, reject) => {
@@ -77,7 +77,7 @@ async function startTracking() {
 
         // Отправляем данные и ждем подтверждения
         Telegram.WebApp.sendData(JSON.stringify(startData));
-        console.log('Отправлено start_tracking:', startData);
+        console.log('Отправлено start_tracking:', startData); // Для отладки
 
         updateStatus('active', 'Отслеживание активно');
         updateAccuracy(position.coords.accuracy);
@@ -98,7 +98,7 @@ async function startTracking() {
                         timestamp: now
                     };
                     Telegram.WebApp.sendData(JSON.stringify(updateData));
-                    console.log('Отправлено update_location:', updateData);
+                    console.log('Отправлено update_location:', updateData); // Для отладки
                     lastSendTime = now;
                 }
             },
@@ -126,7 +126,7 @@ function stopTracking() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        console.log('Отслеживание остановлено'); // Добавлено для отладки
+        console.log('Отслеживание остановлено'); // Для отладки
     }
 
     const data = {
@@ -137,12 +137,12 @@ function stopTracking() {
     try {
         // Отправляем данные и ждем подтверждения
         Telegram.WebApp.sendData(JSON.stringify(data));
-        console.log('Отправлено stop_tracking:', data);
+        console.log('Отправлено stop_tracking:', data); // Для отладки
 
         // Добавляем задержку перед закрытием WebApp
         setTimeout(() => {
             Telegram.WebApp.close();
-            console.log('WebApp закрыт'); // Добавлено для отладки
+            console.log('WebApp закрыт'); // Для отладки
         }, 1000); // 1 секунда
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
