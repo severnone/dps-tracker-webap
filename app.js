@@ -52,7 +52,6 @@ function startTracking() {
             isTracking = true;
             startTime = Date.now();
             updateStatus('active', 'Запуск отслеживания...');
-            document.getElementById('trackButton').textContent = 'Остановить отслеживание';
 
             // Отправляем стартовое сообщение с начальной позицией
             const startData = {
@@ -64,13 +63,14 @@ function startTracking() {
             };
 
             try {
+                console.log('Отправка данных:', startData);
                 Telegram.WebApp.sendData(JSON.stringify(startData));
                 updateStatus('active', 'Отслеживание запущено');
 
-                // Закрываем WebApp через 2 секунды
+                // Закрываем WebApp через 3 секунды
                 setTimeout(() => {
                     Telegram.WebApp.close();
-                }, 2000);
+                }, 3000);
             } catch (error) {
                 console.error('Ошибка отправки данных:', error);
                 updateStatus('error', 'Ошибка запуска отслеживания');
@@ -82,7 +82,7 @@ function startTracking() {
         },
         {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000,
             maximumAge: 0
         }
     );
@@ -98,10 +98,10 @@ function stopTracking() {
         Telegram.WebApp.sendData(JSON.stringify(data));
         updateStatus('inactive', 'Отслеживание остановлено');
 
-        // Закрываем WebApp через 2 секунды
+        // Закрываем WebApp через 3 секунды
         setTimeout(() => {
             Telegram.WebApp.close();
-        }, 2000);
+        }, 3000);
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
         updateStatus('error', 'Ошибка остановки отслеживания');
