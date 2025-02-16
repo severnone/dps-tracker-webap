@@ -2,18 +2,17 @@ let isTracking = false;
 let watchId = null;
 let startTime = null;
 let trackingTimer = null;
-const SEND_INTERVAL = 5000;
-
-// Инициализация Telegram WebApp
-Telegram.WebApp.ready();
-const mainButton = Telegram.WebApp.MainButton;
-mainButton.setText('Начать отслеживание').show();
+let lastSendTime = 0;
+const SEND_INTERVAL = 5000; // Минимальный интервал между отправками данных
 
 document.addEventListener('DOMContentLoaded', function() {
     updateStatus('inactive', 'Готов к работе');
+    document.getElementById('trackButton').addEventListener('click', function(e) {
+        e.preventDefault();
+        toggleTracking();
+    });
     console.log('WebApp загружен и готов к работе');
 
-    // Запрашиваем разрешение на геолокацию при загрузке
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -27,9 +26,6 @@ document.addEventListener('DOMContentLoaded', function() {
             { enableHighAccuracy: true }
         );
     }
-
-    // Обработчик главной кнопки
-    mainButton.onClick(toggleTracking);
 });
 
 function updateStatus(status, message) {
@@ -66,6 +62,8 @@ function toggleTracking() {
 }
 
 function startTracking() {
+    if (isTracking) return;
+
     console.log('Начало отслеживания...');
 
     if (!navigator.geolocation) {
@@ -79,28 +77,36 @@ function startTracking() {
 
             isTracking = true;
             startTime = new Date();
-            mainButton.setText('Остановить отслеживание');
+            document.getElementById('trackButton').textContent = 'Остановить отслеживание';
             updateStatus('active', 'Отслеживание активно');
 
             trackingTimer = setInterval(updateTrackingTime, 1000);
 
-            // Начинаем постоянное отслеживание
-            watchId = navigator.geolocation.watchPosition(
-                handlePosition,
-                handleLocationError,
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 10000
-                }
-            );
-            console.log('Отслеживание запущено, watchId:', watchId);
+            try {
+                const data = {
+                    action: 'start_tracking',
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude,
+                    timestamp: position.timestamp
+                };
+                Telegram.WebApp.sendData(JSON.stringify(data));
+                lastSendTime = Date.now();
+                console.log('Отправлено start_tracking');
 
-            // Отправляем событие о начале отслеживания
-            Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-
-            // Сохраняем данные в CloudStorage
-            Telegram.WebApp.CloudStorage.setItem('tracking_status', 'active');
+                watchId = navigator.geolocation.watchPosition(
+                    handlePosition,
+                    handleLocationError,
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+                console.log('Отслеживание запущено, watchId:', watchId);
+            } catch (error) {
+                console.error('Ошибка отправки данных:', error);
+                handleError('Ошибка отправки данных о начале отслеживания');
+            }
         },
         (error) => {
             console.error('Ошибка при получении начальной позиции:', error);
@@ -115,6 +121,8 @@ function startTracking() {
 }
 
 function stopTracking() {
+    if (!isTracking) return;
+
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
@@ -127,16 +135,18 @@ function stopTracking() {
 
     isTracking = false;
     startTime = null;
-    mainButton.setText('Начать отслеживание');
+    document.getElementById('trackButton').textContent = 'Начать отслеживание';
     document.getElementById('trackingTime').textContent = '00:00:00';
     document.getElementById('accuracy').textContent = 'N/A';
     updateStatus('inactive', 'Отслеживание остановлено');
 
-    // Отправляем событие об остановке отслеживания
-    Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-
-    // Очищаем данные в CloudStorage
-    Telegram.WebApp.CloudStorage.removeItem('tracking_status');
+    try {
+        const data = { action: 'stop_tracking' };
+        Telegram.WebApp.sendData(JSON.stringify(data));
+        console.log('Отправлено stop_tracking');
+    } catch (error) {
+        console.error('Ошибка отправки данных:', error);
+    }
 }
 
 function handlePosition(position) {
@@ -148,16 +158,26 @@ function handlePosition(position) {
 
     updateAccuracy(accuracy);
 
-    // Отправляем данные через postEvent
-    Telegram.WebApp.postEvent('location_update', {
-        lat: latitude,
-        lon: longitude,
-        accuracy: accuracy,
-        timestamp: timestamp
-    });
+    // Проверяем интервал между отправками
+    const now = Date.now();
+    if (now - lastSendTime >= SEND_INTERVAL) {
+        const data = {
+            action: 'update_location',
+            lat: latitude,
+            lon: longitude,
+            timestamp: timestamp
+        };
 
-    updateStatus('active', `Отслеживание активно (точность: ${Math.round(accuracy)}м)`);
-    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+        try {
+            Telegram.WebApp.sendData(JSON.stringify(data));
+            lastSendTime = now;
+            console.log('Отправлено update_location:', data);
+            updateStatus('active', `Отслеживание активно (точность: ${Math.round(accuracy)}м)`);
+        } catch (error) {
+            console.error('Ошибка отправки данных:', error);
+            handleError('Ошибка отправки данных о местоположении');
+        }
+    }
 }
 
 function handleLocationError(error) {
@@ -186,5 +206,7 @@ function handleError(message) {
     if (isTracking) {
         stopTracking();
     }
-    Telegram.WebApp.HapticFeedback.notificationOccurred('error');
 }
+
+// Инициализация Telegram WebApp
+Telegram.WebApp.ready();
