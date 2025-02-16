@@ -82,25 +82,25 @@ function startTracking() {
 
             // Отправляем данные о начале отслеживания
             try {
-                Telegram.WebApp.sendData(JSON.stringify({ action: 'start_tracking' }));
+                const data = { action: 'start_tracking' };
+                Telegram.WebApp.sendData(JSON.stringify(data));
                 console.log('Отправлено start_tracking');
+
+                // Начинаем постоянное отслеживание
+                watchId = navigator.geolocation.watchPosition(
+                    handlePosition,
+                    handleLocationError,
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+                console.log('Отслеживание запущено, watchId:', watchId);
             } catch (error) {
                 console.error('Ошибка отправки данных:', error);
                 handleError('Ошибка отправки данных о начале отслеживания');
-                return;
             }
-
-            // Начинаем постоянное отслеживание
-            watchId = navigator.geolocation.watchPosition(
-                handlePosition,
-                handleLocationError,
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 10000
-                }
-            );
-            console.log('Отслеживание запущено, watchId:', watchId);
         },
         (error) => {
             console.error('Ошибка при получении начальной позиции:', error);
@@ -134,17 +134,12 @@ function stopTracking() {
 
     // Отправляем данные о остановке отслеживания
     try {
-        Telegram.WebApp.sendData(JSON.stringify({ action: 'stop_tracking' }));
+        const data = { action: 'stop_tracking' };
+        Telegram.WebApp.sendData(JSON.stringify(data));
         console.log('Отправлено stop_tracking');
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
     }
-
-    // Закрываем WebApp через 1 секунду
-    setTimeout(() => {
-        Telegram.WebApp.close();
-        console.log('WebApp закрыт');
-    }, 1000);
 }
 
 function handlePosition(position) {
@@ -200,13 +195,6 @@ function handleError(message) {
         stopTracking();
     }
 }
-
-// Обработчик закрытия окна
-window.addEventListener('beforeunload', (event) => {
-    if (isTracking) {
-        stopTracking();
-    }
-});
 
 // Инициализация Telegram WebApp
 Telegram.WebApp.ready();
