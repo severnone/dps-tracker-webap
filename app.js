@@ -98,19 +98,6 @@ function handleLocationError(error) {
     stopTracking();
 }
 
-function getLocationErrorMessage(error) {
-    switch(error.code) {
-        case error.PERMISSION_DENIED:
-            return "Доступ к геолокации запрещен";
-        case error.POSITION_UNAVAILABLE:
-            return "Информация о местоположении недоступна";
-        case error.TIMEOUT:
-            return "Превышено время ожидания";
-        default:
-            return "Неизвестная ошибка";
-    }
-}
-
 // Обработчик закрытия окна
 window.addEventListener('beforeunload', (event) => {
     if (isTracking) {
