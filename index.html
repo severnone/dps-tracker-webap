@@ -14,92 +14,40 @@
             color: var(--tg-theme-text-color, #000000);
         }
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
         .status {
             padding: 12px;
             margin: 12px 0;
             border-radius: 8px;
             text-align: center;
-            background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
-        }
-
-        .status.active {
-            background-color: var(--tg-theme-button-color, #4CAF50);
-            color: var(--tg-theme-button-text-color, #ffffff);
-        }
-
-        .status.inactive {
-            background-color: var(--tg-theme-hint-color, #9E9E9E);
-            color: var(--tg-theme-text-color, #ffffff);
-        }
-
-        .status.error {
-            background-color: #f44336;
-            color: white;
         }
 
         .info-block {
-            background-color: var(--tg-theme-secondary-bg-color, #f5f5f5);
             padding: 12px;
             margin: 12px 0;
             border-radius: 8px;
         }
 
-        .info-label {
-            font-weight: bold;
-            margin-right: 8px;
-        }
-
-        .track-button {
+        #trackButton {
             width: 100%;
             padding: 12px;
-            margin: 12px 0;
+            background-color: #8774e1;
+            color: white;
             border: none;
             border-radius: 8px;
-            background-color: var(--tg-theme-button-color, #8774e1);
-            color: var(--tg-theme-button-text-color, #ffffff);
             font-size: 16px;
-            cursor: pointer;
             position: fixed;
             bottom: 0;
             left: 0;
-            margin: 0;
-            border-radius: 0;
-        }
-
-        .track-button:active {
-            opacity: 0.8;
-        }
-
-        /* Добавляем отступ для контента, чтобы он не перекрывался кнопкой */
-        .content {
-            margin-bottom: 60px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="content">
-            <div id="status" class="status inactive">Готов к работе</div>
-
-            <div class="info-block">
-                <div>
-                    <span class="info-label">Время отслеживания:</span>
-                    <span id="trackingTime">00:00:00</span>
-                </div>
-                <div>
-                    <span class="info-label">Точность:</span>
-                    <span id="accuracy">N/A</span>
-                </div>
-            </div>
-        </div>
-
-        <button id="trackButton" class="track-button">Начать отслеживание</button>
+    <div id="status" class="status">Готов к работе</div>
+    <div class="info-block">
+        <div>Время отслеживания: <span id="trackingTime">00:00:00</span></div>
+        <div>Точность: <span id="accuracy">N/A</span></div>
     </div>
+    <button id="trackButton">Начать отслеживание</button>
     <script src="app.js"></script>
 </body>
 </html>
