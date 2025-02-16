@@ -2,12 +2,27 @@ let isTracking = false;
 let watchId = null;
 let startTime = null;
 let trackingTimer = null;
-const SEND_INTERVAL = 5000; // Интервал отправки данных в миллисекундах
+const SEND_INTERVAL = 5000;
 
 document.addEventListener('DOMContentLoaded', function() {
     updateStatus('inactive', 'Готов к работе');
     document.getElementById('trackButton').addEventListener('click', toggleTracking);
     console.log('WebApp загружен и готов к работе');
+
+    // Запрашиваем разрешение на геолокацию при загрузке
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                console.log('Геолокация доступна:', position);
+                updateStatus('inactive', 'Готов к работе (геолокация доступна)');
+            },
+            (error) => {
+                console.error('Ошибка при первичном запросе геолокации:', error);
+                updateStatus('error', 'Проверьте разрешение на геолокацию');
+            },
+            { enableHighAccuracy: true }
+        );
+    }
 });
 
 function updateStatus(status, message) {
@@ -44,37 +59,59 @@ function toggleTracking() {
 }
 
 function startTracking() {
-    isTracking = true;
-    startTime = new Date();
-    document.getElementById('trackButton').textContent = 'Остановить отслеживание';
-    updateStatus('active', 'Отслеживание активно');
+    console.log('Начало отслеживания...');
 
-    // Запускаем таймер обновления времени отслеживания
-    trackingTimer = setInterval(updateTrackingTime, 1000);
-
-    // Отправляем данные о начале отслеживания
-    try {
-        Telegram.WebApp.sendData(JSON.stringify({ action: 'start_tracking' }));
-        console.log('Отправлено start_tracking');
-    } catch (error) {
-        console.error('Ошибка отправки данных:', error);
-        handleError('Ошибка отправки данных о начале отслеживания');
-    }
-
-    // Начинаем отслеживание геолокации
-    if (navigator.geolocation) {
-        watchId = navigator.geolocation.watchPosition(
-            handlePosition,
-            handleLocationError,
-            {
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000
-            }
-        );
-    } else {
+    // Сначала проверяем доступность геолокации
+    if (!navigator.geolocation) {
         handleError('Геолокация не поддерживается вашим браузером');
+        return;
     }
+
+    // Запрашиваем текущую позицию перед началом отслеживания
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            console.log('Получена начальная позиция:', position);
+
+            isTracking = true;
+            startTime = new Date();
+            document.getElementById('trackButton').textContent = 'Остановить отслеживание';
+            updateStatus('active', 'Отслеживание активно');
+
+            // Запускаем таймер обновления времени отслеживания
+            trackingTimer = setInterval(updateTrackingTime, 1000);
+
+            // Отправляем данные о начале отслеживания
+            try {
+                Telegram.WebApp.sendData(JSON.stringify({ action: 'start_tracking' }));
+                console.log('Отправлено start_tracking');
+            } catch (error) {
+                console.error('Ошибка отправки данных:', error);
+                handleError('Ошибка отправки данных о начале отслеживания');
+                return;
+            }
+
+            // Начинаем постоянное отслеживание
+            watchId = navigator.geolocation.watchPosition(
+                handlePosition,
+                handleLocationError,
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
+            );
+            console.log('Отслеживание запущено, watchId:', watchId);
+        },
+        (error) => {
+            console.error('Ошибка при получении начальной позиции:', error);
+            handleLocationError(error);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
 }
 
 function stopTracking() {
@@ -111,6 +148,7 @@ function stopTracking() {
 }
 
 function handlePosition(position) {
+    console.log('Получена новая позиция:', position);
     const { latitude, longitude, accuracy } = position.coords;
     const timestamp = position.timestamp;
 
@@ -128,6 +166,7 @@ function handlePosition(position) {
     try {
         Telegram.WebApp.sendData(JSON.stringify(data));
         console.log('Отправлено update_location:', data);
+        updateStatus('active', `Отслеживание активно (точность: ${Math.round(accuracy)}м)`);
     } catch (error) {
         console.error('Ошибка отправки данных:', error);
         handleError('Ошибка отправки данных о местоположении');
@@ -138,20 +177,20 @@ function handleLocationError(error) {
     let message;
     switch(error.code) {
         case error.PERMISSION_DENIED:
-            message = 'Доступ к геолокации запрещен';
+            message = 'Доступ к геолокации запрещен. Проверьте настройки браузера.';
             break;
         case error.POSITION_UNAVAILABLE:
-            message = 'Информация о местоположении недоступна';
+            message = 'Информация о местоположении недоступна. Проверьте GPS и интернет-соединение.';
             break;
         case error.TIMEOUT:
-            message = 'Превышено время ожидания получения местоположения';
+            message = 'Превышено время ожидания получения местоположения. Попробуйте еще раз.';
             break;
         default:
-            message = 'Произошла неизвестная ошибка при получении местоположения';
+            message = `Произошла неизвестная ошибка при получении местоположения (${error.message})`;
     }
 
+    console.error('Ошибка геолокации:', error);
     updateStatus('error', message);
-    console.error('Ошибка геолокации:', message);
     handleError(message);
 }
 
